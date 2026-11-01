@@ -1,0 +1,13 @@
+[
+  {"order_number": "1001", "email": "sam@example.com", "status": "Delivered",
+   "created_at": "2026-10-20", "items": [{"name": "Classic Ceramic Mug", "quantity": 2}],
+   "tracking": [{"carrier": "Royal Mail", "number": "RM123456789GB", "url": "https://www.royalmail.com/track-your-item#/tracking-results/RM123456789GB"}],
+   "estimated_delivery": "2026-10-23", "delivered_at": "2026-10-22"},
+  {"order_number": "1002", "email": "alex@example.com", "status": "Shipped / in transit",
+   "created_at": "2026-10-29", "items": [{"name": "Soy Candle - Sea Salt", "quantity": 1}, {"name": "Organic Cotton Tote Bag", "quantity": 1}],
+   "tracking": [{"carrier": "DPD", "number": "15501234567890", "url": "https://track.dpd.co.uk/parcels/15501234567890"}],
+   "estimated_delivery": "2026-11-03"},
+  {"order_number": "1003", "email": "jo@example.com", "status": "Paid - not yet dispatched",
+   "created_at": "2026-11-01", "items": [{"name": "Personalised Name Mug", "quantity": 1}],
+   "tracking": [], "estimated_delivery": null}
+]

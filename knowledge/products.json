@@ -1,0 +1,17 @@
+[
+  {"sku": "MUG-001", "name": "Classic Ceramic Mug", "price": "£12.00", "in_stock": true,
+   "description": "350ml stoneware mug. Dishwasher and microwave safe. Colours: white, sage, charcoal.",
+   "tags": ["mug", "kitchen", "gift", "ceramic"]},
+  {"sku": "MUG-002", "name": "Personalised Name Mug", "price": "£16.00", "in_stock": true,
+   "description": "350ml mug printed with a name of up to 12 characters. Personalised items are non-returnable unless faulty. Made to order: dispatched in 2 working days.",
+   "tags": ["mug", "personalised", "gift", "custom"]},
+  {"sku": "TOTE-010", "name": "Organic Cotton Tote Bag", "price": "£9.50", "in_stock": true,
+   "description": "Heavy 280gsm organic cotton tote, 38 x 42cm, holds 10kg. Machine wash at 30°C.",
+   "tags": ["bag", "tote", "cotton", "eco"]},
+  {"sku": "CNDL-201", "name": "Soy Candle - Fig & Cedar", "price": "£18.00", "in_stock": false,
+   "description": "200g hand-poured soy wax candle, approx. 40 hours burn time. Back in stock mid-month.",
+   "tags": ["candle", "home", "fragrance", "gift"]},
+  {"sku": "CNDL-202", "name": "Soy Candle - Sea Salt", "price": "£18.00", "in_stock": true,
+   "description": "200g hand-poured soy wax candle, approx. 40 hours burn time. Vegan and paraffin-free.",
+   "tags": ["candle", "home", "fragrance", "gift", "vegan"]}
+]

@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Demo Store</title>
+  <style>
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #fbfaf7; color: #1d1d1f; }
+    header { padding: 20px 24px; border-bottom: 1px solid #e7e4dc; font-weight: 700; font-size: 20px; }
+    main { max-width: 760px; margin: 40px auto; padding: 0 16px; }
+    .card { background: #fff; border: 1px solid #e7e4dc; border-radius: 12px; padding: 20px 24px; margin-bottom: 16px; }
+    code { background: #f1efe9; padding: 2px 6px; border-radius: 4px; }
+    li { margin: 6px 0; }
+  </style>
+</head>
+<body>
+  <header>Demo Store</header>
+  <main>
+    <div class="card">
+      <h2>Test your support agent</h2>
+      <p>Click the chat bubble in the bottom-right corner and try:</p>
+      <ul>
+        <li>How long does delivery to Germany take?</li>
+        <li>Can I return a personalised mug?</li>
+        <li>Where is my order <code>1002</code>? My email is <code>alex@example.com</code></li>
+        <li>Do you have any vegan candles?</li>
+        <li>My mug arrived broken, I want to speak to someone</li>
+      </ul>
+    </div>
+  </main>
+  <!-- This one line is all a store needs to add: -->
+  <script src="/widget.js" data-title="Demo Store support" defer></script>
+</body>
+</html>
