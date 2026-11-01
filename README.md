@@ -62,11 +62,19 @@ streamlit run streamlit_app.py
 1. Push this project to a GitHub repository.
 2. Go to https://share.streamlit.io → **Create app** → pick the repo, branch `main`, main file `streamlit_app.py`.
    Under **Advanced settings**, choose Python 3.12.
-3. In **Advanced settings → Secrets** paste (see `.streamlit/secrets.toml.example`):
+3. In **Advanced settings → Secrets** paste ONE of these (see `.streamlit/secrets.toml.example`):
    ```toml
+   # Groq
+   GROQ_API_KEY = "gsk_..."
+   GROQ_MODEL = "llama-3.3-70b-versatile"
+   STORE_NAME = "Demo Store"
+   ```
+   ```toml
+   # Claude (Anthropic)
    ANTHROPIC_API_KEY = "sk-ant-..."
    STORE_NAME = "Demo Store"
    ```
+   The app uses Groq automatically when only `GROQ_API_KEY` is set. If you set both keys, add `LLM_PROVIDER = "groq"` to choose Groq.
 4. Deploy. You get a public `https://<name>.streamlit.app` link to show store owners.
 
 Note: on Streamlit Cloud, files written at runtime (like `data/tickets.jsonl`) are wiped when the app restarts.

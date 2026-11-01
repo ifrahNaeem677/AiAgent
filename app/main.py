@@ -12,16 +12,15 @@ import uuid
 from collections import defaultdict, deque
 from threading import Lock
 
-import anthropic
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
-from .agent import SupportAgent
 from .config import ROOT, settings
 from .escalation import EscalationService
 from .orders import make_order_provider
+from .providers import friendly_error, make_agent
 from .tools import ToolBox
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -40,13 +39,13 @@ toolbox = ToolBox(
     products_path=settings.knowledge_dir / "products.json",
     escalation=EscalationService(settings.data_dir / "tickets.jsonl", settings.escalation_webhook_url),
 )
-_agent: SupportAgent | None = None
+_agent = None
 
 
-def get_agent() -> SupportAgent:
+def get_agent():
     global _agent
     if _agent is None:
-        _agent = SupportAgent(settings, toolbox)
+        _agent = make_agent(settings, toolbox)
     return _agent
 
 
@@ -106,13 +105,9 @@ def chat(body: ChatIn, request: Request) -> ChatOut:
     with session_locks[sid]:  # one message at a time per conversation
         try:
             r = get_agent().reply(session["history"], body.message.strip(), sid)
-        except anthropic.RateLimitError:
-            raise HTTPException(503, "We're very busy right now - please try again in a minute.")
-        except anthropic.APIConnectionError:
-            raise HTTPException(503, "Connection problem - please try again.")
-        except anthropic.APIStatusError as e:
-            log.error("Claude API error %s: %s", e.status_code, e.message)
-            raise HTTPException(502, "Sorry, the assistant is unavailable right now.")
+        except Exception as e:  # API errors from Groq or Anthropic
+            log.error("LLM API error: %s", e)
+            raise HTTPException(503, friendly_error(e, settings))
         session["turns"] += 1
         session["updated"] = time.time()
 

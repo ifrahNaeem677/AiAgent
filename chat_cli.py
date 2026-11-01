@@ -2,10 +2,10 @@
 
 import uuid
 
-from app.agent import SupportAgent
 from app.config import settings
 from app.escalation import EscalationService
 from app.orders import make_order_provider
+from app.providers import make_agent, model_label
 from app.tools import ToolBox
 
 toolbox = ToolBox(
@@ -13,10 +13,10 @@ toolbox = ToolBox(
     products_path=settings.knowledge_dir / "products.json",
     escalation=EscalationService(settings.data_dir / "tickets.jsonl", settings.escalation_webhook_url),
 )
-agent = SupportAgent(settings, toolbox)
+agent = make_agent(settings, toolbox)
 history, session_id = [], uuid.uuid4().hex
 
-print(f"{settings.store_name} support (model: {settings.model}). Type 'quit' to exit.\n")
+print(f"{settings.store_name} support (model: {model_label(settings)}). Type 'quit' to exit.\n")
 while True:
     try:
         msg = input("You: ").strip()

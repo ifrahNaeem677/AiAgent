@@ -2,7 +2,7 @@
 
 Local:  streamlit run streamlit_app.py
 Cloud:  deploy this repo on share.streamlit.io and add your secrets
-        (ANTHROPIC_API_KEY etc.) under App settings -> Secrets.
+        (GROQ_API_KEY or ANTHROPIC_API_KEY) under App settings -> Secrets.
 """
 
 import json
@@ -22,12 +22,10 @@ try:
 except Exception:  # no secrets file locally - fine, .env is used instead
     pass
 
-import anthropic  # noqa: E402
-
-from app.agent import SupportAgent  # noqa: E402
 from app.config import settings  # noqa: E402
 from app.escalation import EscalationService  # noqa: E402
 from app.orders import make_order_provider  # noqa: E402
+from app.providers import api_key_present, friendly_error, make_agent, model_label  # noqa: E402
 from app.tools import ToolBox  # noqa: E402
 
 TICKETS = settings.data_dir / "tickets.jsonl"
@@ -45,13 +43,13 @@ def show(text: str) -> None:
 
 
 @st.cache_resource
-def load_agent() -> SupportAgent:
+def load_agent():
     toolbox = ToolBox(
         orders=make_order_provider(settings),
         products_path=settings.knowledge_dir / "products.json",
         escalation=EscalationService(TICKETS, settings.escalation_webhook_url),
     )
-    return SupportAgent(settings, toolbox)
+    return make_agent(settings, toolbox)
 
 
 def new_conversation() -> None:
@@ -69,7 +67,7 @@ if "session_id" not in st.session_state:
 # ---------------- Sidebar ----------------
 with st.sidebar:
     st.subheader(settings.store_name)
-    st.caption(f"Model: `{settings.model}` · effort `{settings.effort}` · orders: `{settings.order_backend}`")
+    st.caption(f"Model: `{model_label(settings)}` · orders: `{settings.order_backend}`")
     if st.button("New conversation", use_container_width=True):
         new_conversation()
         st.rerun()
@@ -94,11 +92,12 @@ with st.sidebar:
 # ---------------- Chat ----------------
 st.title("💬 Customer support")
 
-if not (os.getenv("ANTHROPIC_API_KEY") or os.getenv("ANTHROPIC_AUTH_TOKEN")):
+if not api_key_present(settings):
     st.error(
-        "No Anthropic API key found. Locally, add `ANTHROPIC_API_KEY=...` to `.env`. "
-        "On Streamlit Cloud, open **App settings -> Secrets** and add:\n\n"
-        '```toml\nANTHROPIC_API_KEY = "sk-ant-..."\n```'
+        "No API key found. On Streamlit Cloud, open **App settings -> Secrets** and add ONE of:\n\n"
+        '```toml\nGROQ_API_KEY = "gsk_..."\n```\n'
+        '```toml\nANTHROPIC_API_KEY = "sk-ant-..."\n```\n'
+        "Locally, put the same line in `.env` (without quotes)."
     )
     st.stop()
 
@@ -122,23 +121,8 @@ if user_text:
                 r = load_agent().reply(st.session_state.api_history, user_text, st.session_state.session_id)
                 text = r.text
                 note = f"Passed to our team - ticket {r.ticket_id}" if r.escalated else None
-            except anthropic.AuthenticationError:
-                text, note = "The API key is invalid. Check ANTHROPIC_API_KEY in your secrets.", None
-            except anthropic.RateLimitError:
-                text, note = "We're very busy right now - please try again in a minute.", None
-            except anthropic.APIConnectionError:
-                text, note = "Connection problem - please try again.", None
-            except anthropic.APIStatusError as e:
-                detail = str(e.message)
-                if "credit balance" in detail.lower():
-                    text = ("Your Anthropic account has no API credits. Add credits at "
-                            "https://platform.claude.com/settings/billing, then try again.")
-                elif e.status_code == 404 or "model" in detail.lower():
-                    text = (f"The model `{settings.model}` isn't available on this API key. "
-                            f"Set AGENT_MODEL in Secrets to another model. Details: {detail}")
-                else:
-                    text = f"The assistant is unavailable right now (error {e.status_code}): {detail}"
-                note = None
+            except Exception as e:  # API errors from Groq or Anthropic
+                text, note = friendly_error(e, settings), None
         show(text)
         if note:
             st.info(note, icon="🧑‍💼")
