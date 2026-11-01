@@ -129,7 +129,16 @@ if user_text:
             except anthropic.APIConnectionError:
                 text, note = "Connection problem - please try again.", None
             except anthropic.APIStatusError as e:
-                text, note = f"Sorry, the assistant is unavailable right now (error {e.status_code}).", None
+                detail = str(e.message)
+                if "credit balance" in detail.lower():
+                    text = ("Your Anthropic account has no API credits. Add credits at "
+                            "https://platform.claude.com/settings/billing, then try again.")
+                elif e.status_code == 404 or "model" in detail.lower():
+                    text = (f"The model `{settings.model}` isn't available on this API key. "
+                            f"Set AGENT_MODEL in Secrets to another model. Details: {detail}")
+                else:
+                    text = f"The assistant is unavailable right now (error {e.status_code}): {detail}"
+                note = None
         show(text)
         if note:
             st.info(note, icon="🧑‍💼")

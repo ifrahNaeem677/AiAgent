@@ -58,6 +58,7 @@ class SupportAgent:
         self.settings = settings
         self.toolbox = toolbox
         self.client = client or anthropic.Anthropic()
+        self.use_fallbacks = True
         policies = (settings.knowledge_dir / "store_policies.md").read_text()
         # The system prompt is identical on every request, so it is cached (cheaper + faster).
         self.system = [{
@@ -71,17 +72,26 @@ class SupportAgent:
         }]
 
     def _call_claude(self, messages: list[dict]):
-        return self.client.beta.messages.create(
+        params = dict(
             model=self.settings.model,
             max_tokens=16000,
             system=self.system,
             tools=TOOL_DEFINITIONS,
             messages=messages,
             output_config={"effort": self.settings.effort},
-            # If a safety classifier wrongly declines a normal request, retry on a fallback model.
-            betas=["server-side-fallback-2026-07-01"],
-            fallbacks="default",
         )
+        if self.use_fallbacks:
+            try:
+                # If a safety classifier wrongly declines a normal request, retry on a fallback model.
+                return self.client.beta.messages.create(
+                    **params, betas=["server-side-fallback-2026-07-01"], fallbacks="default")
+            except anthropic.BadRequestError as e:
+                if "fallback" not in str(e.message).lower():
+                    raise
+                # This account/model doesn't accept the fallback option: carry on without it.
+                log.warning("Disabling refusal fallbacks: %s", e.message)
+                self.use_fallbacks = False
+        return self.client.messages.create(**params)
 
     def reply(self, history: list[dict], user_message: str, session_id: str) -> AgentReply:
         """Run one customer turn. `history` is mutated in place (append-only).
