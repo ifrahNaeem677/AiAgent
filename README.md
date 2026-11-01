@@ -66,7 +66,7 @@ streamlit run streamlit_app.py
    ```toml
    # Groq
    GROQ_API_KEY = "gsk_..."
-   GROQ_MODEL = "llama-3.3-70b-versatile"
+   GROQ_MODEL = "auto"   # or a model ID from console.groq.com
    STORE_NAME = "Demo Store"
    ```
    ```toml

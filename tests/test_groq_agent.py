@@ -28,6 +28,7 @@ class FakeGroq:
     def __init__(self, replies):
         self.replies, self.calls = list(replies), []
         self.chat = SimpleNamespace(completions=SimpleNamespace(create=self._create))
+        self.models = SimpleNamespace(list=lambda: SimpleNamespace(data=[SimpleNamespace(id="openai/gpt-oss-120b")]))
 
     def _create(self, **kw):
         self.calls.append(kw)
@@ -90,3 +91,38 @@ def test_provider_auto_detect(monkeypatch):
     assert Settings().provider == "anthropic"
     monkeypatch.setenv("LLM_PROVIDER", "groq")
     assert Settings().provider == "groq"
+
+
+class ModelGone(Exception):
+    status_code = 404
+
+
+class FakeGroqWithModels(FakeGroq):
+    def __init__(self, replies, available, missing=()):
+        super().__init__(replies)
+        self.missing = set(missing)
+        self.models = SimpleNamespace(list=lambda: SimpleNamespace(data=[SimpleNamespace(id=i) for i in available]))
+
+    def _create(self, **kw):
+        if kw["model"] in self.missing:
+            raise ModelGone("model_not_found")
+        return super()._create(**kw)
+
+
+def test_retired_model_switches_automatically(toolbox):
+    s = Settings()
+    s.groq_model = "llama-3.3-70b-versatile"
+    fake = FakeGroqWithModels([("Hello!", None)], available=["whisper-large-v3", "qwen/qwen3-32b", "openai/gpt-oss-120b"],
+                              missing={"llama-3.3-70b-versatile"})
+    agent = GroqSupportAgent(s, toolbox, client=fake)
+    assert agent.reply([], "hi", "s").text == "Hello!"
+    assert agent.model == "openai/gpt-oss-120b" and s.groq_model == "openai/gpt-oss-120b"
+
+
+def test_auto_model_skips_non_chat_models(toolbox):
+    s = Settings()
+    s.groq_model = "auto"
+    fake = FakeGroqWithModels([("Hi", None)], available=["whisper-large-v3", "some-new/chat-model"])
+    agent = GroqSupportAgent(s, toolbox, client=fake)
+    agent.reply([], "hi", "s")
+    assert fake.calls[0]["model"] == "some-new/chat-model"

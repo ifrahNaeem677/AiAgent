@@ -25,6 +25,26 @@ GROQ_TOOLS = [
 ]
 
 
+# When GROQ_MODEL is "auto" (or the chosen model is retired), use the first of
+# these that your key can access. Groq changes its model list often.
+PREFERRED_MODELS = [
+    "openai/gpt-oss-120b",
+    "moonshotai/kimi-k2-instruct-0905",
+    "moonshotai/kimi-k2-instruct",
+    "meta-llama/llama-4-maverick-17b-128e-instruct",
+    "qwen/qwen3-32b",
+    "openai/gpt-oss-20b",
+    "meta-llama/llama-4-scout-17b-16e-instruct",
+    "llama-3.3-70b-versatile",
+    "llama-3.1-8b-instant",
+]
+NOT_CHAT_MODELS = ("whisper", "tts", "guard", "playai", "orpheus", "compound", "embed", "distil")
+
+
+def _is_model_missing(e: Exception) -> bool:
+    return getattr(e, "status_code", None) == 404 or "model_not_found" in str(e)
+
+
 class GroqSupportAgent:
     def __init__(self, settings: Settings, toolbox: ToolBox, client=None):
         import groq  # imported here so the Claude version doesn't need the package
@@ -32,12 +52,45 @@ class GroqSupportAgent:
         self.settings = settings
         self.toolbox = toolbox
         self.client = client or groq.Groq()  # reads GROQ_API_KEY
+        self.model = settings.groq_model.strip() or "auto"
         policies = (settings.knowledge_dir / "store_policies.md").read_text()
         self.system = SYSTEM_TEMPLATE.format(
             store_name=settings.store_name,
             policies=policies.strip(),
             support_email=settings.support_email,
         )
+
+    def _pick_model(self) -> str:
+        available = [m.id for m in self.client.models.list().data]
+        for name in PREFERRED_MODELS:
+            if name in available:
+                return name
+        chat = [m for m in available if not any(x in m.lower() for x in NOT_CHAT_MODELS)]
+        if not chat:
+            raise RuntimeError("No chat models are available for this Groq key.")
+        return chat[0]
+
+    def _use_model(self, name: str) -> None:
+        log.warning("Using Groq model %s", name)
+        self.model = name
+        self.settings.groq_model = name  # so the app shows the model actually in use
+
+    def _complete(self, messages: list[dict]):
+        if self.model.lower() == "auto":
+            self._use_model(self._pick_model())
+        params = dict(messages=messages, tools=GROQ_TOOLS, tool_choice="auto",
+                      temperature=0.3, max_completion_tokens=1024)
+        try:
+            return self.client.chat.completions.create(model=self.model, **params)
+        except Exception as e:
+            if not _is_model_missing(e):
+                raise
+            replacement = self._pick_model()
+            if replacement == self.model:
+                raise
+            log.warning("Groq model %s is not available", self.model)
+            self._use_model(replacement)
+            return self.client.chat.completions.create(model=self.model, **params)
 
     def reply(self, history: list[dict], user_message: str, session_id: str) -> AgentReply:
         start = len(history)
@@ -53,14 +106,7 @@ class GroqSupportAgent:
         result = AgentReply(text="")
 
         for _ in range(MAX_TOOL_ROUNDS):
-            response = self.client.chat.completions.create(
-                model=self.settings.groq_model,
-                messages=[{"role": "system", "content": self.system}, *history],
-                tools=GROQ_TOOLS,
-                tool_choice="auto",
-                temperature=0.3,
-                max_completion_tokens=1024,
-            )
+            response = self._complete([{"role": "system", "content": self.system}, *history])
             msg = response.choices[0].message
             tool_calls = msg.tool_calls or []
 

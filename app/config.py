@@ -31,7 +31,7 @@ class Settings:
     provider: str = field(default_factory=lambda: os.getenv("LLM_PROVIDER") or (
         "groq" if os.getenv("GROQ_API_KEY") and not os.getenv("ANTHROPIC_API_KEY") else "anthropic"
     ))
-    groq_model: str = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+    groq_model: str = os.getenv("GROQ_MODEL", "auto")
     model: str = os.getenv("AGENT_MODEL", "claude-opus-5-5")
     effort: str = os.getenv("AGENT_EFFORT", "low")
 
