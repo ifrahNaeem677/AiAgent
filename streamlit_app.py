@@ -15,12 +15,24 @@ st.set_page_config(page_title="Store Support Agent", page_icon="💬", layout="c
 
 # Streamlit Cloud keeps keys in st.secrets; copy them into environment
 # variables BEFORE importing app.config, which reads settings from the environment.
+# Accepts "GROQ_API_KEY" or "groq_api_key", at the top level or inside a [section].
+SECRET_NAMES: list[str] = []
+SECRETS_ERROR = ""
 try:
-    for key, value in st.secrets.items():
-        if isinstance(value, (str, int, float, bool)):
-            os.environ.setdefault(key, str(value))
-except Exception:  # no secrets file locally - fine, .env is used instead
-    pass
+    def _load(items):
+        for key, value in items:
+            if hasattr(value, "items"):  # a [section] in the TOML
+                _load(value.items())
+            elif isinstance(value, (str, int, float, bool)):
+                name = str(key).strip().upper()
+                SECRET_NAMES.append(name)
+                os.environ.setdefault(name, str(value).strip())
+    _load(st.secrets.items())
+except Exception as e:
+    msg = str(e)
+    if "pars" in msg.lower():  # a typo in the Secrets box makes the whole text unreadable
+        SECRETS_ERROR = msg.split(": ", 1)[-1]  # e.g. "Invalid value (at line 1, column 16)"
+    # otherwise: no secrets at all (e.g. running locally with .env) - that's fine
 
 from app.config import settings  # noqa: E402
 from app.escalation import EscalationService  # noqa: E402
@@ -99,6 +111,14 @@ if not api_key_present(settings):
         '```toml\nANTHROPIC_API_KEY = "sk-ant-..."\n```\n'
         "Locally, put the same line in `.env` (without quotes)."
     )
+    if SECRETS_ERROR:
+        st.warning("Your Secrets text has a typo, so none of it could be read. Check every value has "
+                   "\"double quotes\" around it, like `GROQ_API_KEY = \"gsk_...\"`.\n\n"
+                   f"Streamlit says: `{SECRETS_ERROR[:200]}`")
+    elif SECRET_NAMES:
+        st.info("Settings found in Secrets (values hidden): " + ", ".join(f"`{n}`" for n in SECRET_NAMES))
+    else:
+        st.info("The Secrets box is empty.")
     st.stop()
 
 for msg in st.session_state.display:
